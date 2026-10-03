@@ -1,0 +1,10 @@
+Salve aqui os prints com EXATAMENTE estes nomes (o README.md já aponta para eles):
+
+01-pipeline.png              -> Aba Actions: execução com os 5 jobs verdes (build, test, docker-build-push, deploy-staging, deploy-production)
+02-testes.png                -> Job "Testes automatizados" aberto, mostrando "Tests run: ..., Failures: 0" (ou o resumo da execução)
+03-imagem-ghcr.png           -> Página "Packages" do repositório mostrando a imagem cidades-esg-inteligentes
+04-deploy-staging.png        -> Job "Deploy em Staging" aberto no passo "Deploy + smoke test", mostrando "SMOKE TEST APROVADO" e "ambiente":"staging"
+05-aprovacao-producao.png    -> Tela "Review deployments" pedindo aprovação para production
+06-deploy-producao.png       -> Job "Deploy em Produção" com "SMOKE TEST APROVADO" e "ambiente":"production"
+07-docker-compose-local.png  -> Terminal com "docker compose ps" mostrando app + db (healthy) na sua máquina
+08-api-funcionando.png       -> Navegador/Postman com http://localhost:8080/ e /api/cidades respondendo

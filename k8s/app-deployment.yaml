@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cidades-esg-app
+  labels:
+    app: cidades-esg-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cidades-esg-app
+  template:
+    metadata:
+      labels:
+        app: cidades-esg-app
+    spec:
+      containers:
+        - name: cidades-esg-app
+          image: ghcr.io/dlcruzz/cidades-esg-inteligentes:latest   # ajuste se o repo tiver outro nome
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: cidades-esg-config
+            - secretRef:
+                name: cidades-esg-secret
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cidades-esg-app-service
+spec:
+  type: ClusterIP
+  selector:
+    app: cidades-esg-app
+  ports:
+    - port: 80
+      targetPort: 8080

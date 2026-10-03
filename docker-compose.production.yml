@@ -1,0 +1,30 @@
+# ==========================================================
+# Override de PRODUÇÃO.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+# Mantém a estrutura base (app + db + network + volume) e
+# ajusta apenas o que muda em produção: profile ativo,
+# política de reinício, limites de recursos e banco sem
+# porta exposta para fora da rede interna.
+# ==========================================================
+
+services:
+
+  app:
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    restart: always
+
+  db:
+    # Em produção o banco só é acessível pela rede interna (esg-network)
+    ports: !reset []
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    restart: always

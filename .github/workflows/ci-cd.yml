@@ -1,0 +1,235 @@
+name: CI/CD - Cidades ESG Inteligentes
+
+# Gatilhos:
+# - push em "main": build -> testes -> imagem Docker -> deploy STAGING -> deploy PRODUÇÃO
+# - pull_request para "main": só build + testes (gate de qualidade, sem deploy)
+# - workflow_dispatch: execução manual pela aba Actions
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+# Evita dois deploys simultâneos da mesma branch
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+# bash com "-eo pipefail": se o deploy falhar, o "| tee" não esconde o erro
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  # ------------------------------------------------------------------
+  # 1) BUILD - compila o projeto e gera o artefato .jar
+  # ------------------------------------------------------------------
+  build:
+    name: Build da aplicação
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build com Maven (sem testes)
+        run: mvn -B clean package -DskipTests
+
+      - name: Upload do artefato .jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/cidades-esg-inteligentes.jar
+          retention-days: 7
+
+  # ------------------------------------------------------------------
+  # 2) TESTES - suíte automatizada (JUnit 5 + Mockito + MockMvc, H2)
+  # ------------------------------------------------------------------
+  test:
+    name: Testes automatizados
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Executar testes (profile test - H2 em memória)
+        run: mvn -B test -Dspring.profiles.active=test
+
+      - name: Resumo dos testes
+        if: always()
+        run: |
+          echo "## 🧪 Resultado dos testes" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -h "Tests run" target/surefire-reports/*.txt >> "$GITHUB_STEP_SUMMARY" || echo "sem relatório" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar relatório dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-testes
+          path: target/surefire-reports/
+          retention-days: 7
+
+  # ------------------------------------------------------------------
+  # 3) DOCKER - build e push da imagem para o GitHub Container Registry
+  # ------------------------------------------------------------------
+  docker-build-push:
+    name: Build & Push da imagem Docker
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Definir nome da imagem (GHCR exige letras minúsculas)
+        id: meta
+        run: |
+          NOME=$(echo "${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "base=${NOME}" >> "$GITHUB_OUTPUT"
+          echo "image=${NOME}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build e push da imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ steps.meta.outputs.base }}:latest
+
+      - name: Resumo da imagem
+        run: |
+          echo "## 🐳 Imagem publicada" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${{ steps.meta.outputs.image }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
+  # 4) DEPLOY STAGING - automático a cada push na main
+  #    Sobe app + Postgres com Docker Compose (profile "staging")
+  #    usando a imagem recém-publicada e roda o smoke test.
+  # ------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy em Staging
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    environment:
+      name: staging
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy + smoke test (staging)
+        env:
+          # Secret opcional por ambiente; se não existir, o script usa um padrão
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: bash scripts/deploy.sh staging "${{ needs.docker-build-push.outputs.image }}" | tee deploy-staging.log
+
+      - name: Evidências no resumo do pipeline
+        if: always()
+        run: |
+          echo "## 🚀 Deploy STAGING" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat deploy-staging.log >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker compose -p cidades-esg-staging logs app > app-staging.log 2>&1 || true
+
+      - name: Publicar logs do staging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-staging
+          path: |
+            deploy-staging.log
+            app-staging.log
+          retention-days: 7
+
+  # ------------------------------------------------------------------
+  # 5) DEPLOY PRODUÇÃO - só roda se staging passou.
+  #    O GitHub Environment "production" pode exigir aprovação manual
+  #    (Settings > Environments > production > Required reviewers).
+  # ------------------------------------------------------------------
+  deploy-production:
+    name: Deploy em Produção
+    runs-on: ubuntu-latest
+    needs: [ docker-build-push, deploy-staging ]
+    environment:
+      name: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy + smoke test (produção)
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: bash scripts/deploy.sh production "${{ needs.docker-build-push.outputs.image }}" | tee deploy-production.log
+
+      - name: Evidências no resumo do pipeline
+        if: always()
+        run: |
+          echo "## 🏭 Deploy PRODUÇÃO" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat deploy-production.log >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker compose -p cidades-esg-production logs app > app-production.log 2>&1 || true
+
+      - name: Publicar logs da produção
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-production
+          path: |
+            deploy-production.log
+            app-production.log
+          retention-days: 7

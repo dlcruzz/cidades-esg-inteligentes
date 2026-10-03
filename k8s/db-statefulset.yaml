@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cidades-esg-db
+spec:
+  serviceName: cidades-esg-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cidades-esg-db
+  template:
+    metadata:
+      labels:
+        app: cidades-esg-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: cidades-esg-secret
+          volumeMounts:
+            - name: esg-db-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "esg_user"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: esg-db-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cidades-esg-db
+spec:
+  clusterIP: None
+  selector:
+    app: cidades-esg-db
+  ports:
+    - port: 5432
+      targetPort: 5432

@@ -1,0 +1,65 @@
+# ==========================================================
+# docker-compose.yml - Cidades ESG Inteligentes
+# Sobe a aplicação Spring Boot + banco PostgreSQL.
+#
+# Uso local (staging):   docker compose --env-file .env up -d --build
+# Uso pelo pipeline:     bash scripts/deploy.sh staging|production <imagem>
+#
+# Não usamos "container_name" fixo: assim staging e produção podem
+# rodar lado a lado na mesma máquina, cada um com seu nome de projeto
+# (-p cidades-esg-staging / -p cidades-esg-production), sua própria
+# rede, seu próprio volume e sua própria porta.
+# ==========================================================
+
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # APP_IMAGE permite usar a imagem publicada no GHCR pelo pipeline;
+    # sem ela, usa a imagem construída localmente.
+    image: ${APP_IMAGE:-cidades-esg-inteligentes:latest}
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-staging}
+      SERVER_PORT: 8080
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-cidades_esg}
+      DB_USER: ${POSTGRES_USER:-esg_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-esg_pass}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - esg-network
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cidades_esg}
+      POSTGRES_USER: ${POSTGRES_USER:-esg_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-esg_pass}
+    ports:
+      - "${DB_EXPOSED_PORT:-5432}:5432"
+    volumes:
+      - esg-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-esg_user} -d ${POSTGRES_DB:-cidades_esg}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - esg-network
+
+volumes:
+  esg-db-data:
+    driver: local
+
+networks:
+  esg-network:
+    driver: bridge
