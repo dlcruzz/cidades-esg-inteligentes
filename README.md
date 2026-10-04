@@ -2,7 +2,12 @@
 
 API REST em **Java Spring Boot** para cadastro e monitoramento de indicadores **ESG** (Ambiental, Social e Governança) de cidades. Este repositório automatiza todo o ciclo de vida da aplicação com práticas de **DevOps**: pipeline CI/CD no GitHub Actions, containerização com Docker, orquestração com Docker Compose (e manifests Kubernetes alternativos) e deploy automatizado em **staging** e **produção**.
 
-**Integrantes:** Danilo Lima Cruz — RM: `______`
+**Grupo 14 — Integrantes:**
+- Amanda do Nascimento Diacís — RM565236
+- Ariane Hemerich — RM561659
+- Ariel de Souza Lima — RM561994
+- Danilo Lima Cruz — RM564828
+- Paulo Augusto Siqueira — RM563083
 
 ---
 
@@ -199,18 +204,27 @@ ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
 
 ## 🖼️ Prints do funcionamento
 
-> Prints salvos em `docs/prints/`. Execução do pipeline: aba **Actions** do repositório.
+Execução de referência do pipeline: **[Actions › run #1](https://github.com/dlcruzz/cidades-esg-inteligentes/actions/runs/37162471208)** — 5/5 jobs com sucesso, 11/11 testes aprovados.
 
-| Evidência | Print |
-|-----------|-------|
-| Pipeline completo (todos os jobs verdes) | ![pipeline](docs/prints/01-pipeline.png) |
-| Testes automatizados passando | ![testes](docs/prints/02-testes.png) |
-| Imagem publicada no GHCR | ![imagem](docs/prints/03-imagem-ghcr.png) |
-| Deploy em **staging** + smoke test | ![staging](docs/prints/04-deploy-staging.png) |
-| Aprovação manual de produção | ![aprovacao](docs/prints/05-aprovacao-producao.png) |
-| Deploy em **produção** + smoke test | ![producao](docs/prints/06-deploy-producao.png) |
-| `docker compose up` local (app + db) | ![compose](docs/prints/07-docker-compose-local.png) |
-| API respondendo (`/` e `/api/cidades`) | ![api](docs/prints/08-api-funcionando.png) |
+### Pipeline completo
+![Pipeline](docs/prints/01-pipeline.png)
+
+### Testes automatizados
+![Testes](docs/prints/02-testes.png)
+
+### Imagem publicada no GHCR
+![Imagem GHCR](docs/prints/03-imagem-ghcr.png)
+
+### Deploy em staging + smoke test
+`docker compose ps` com app e db rodando, health `UP`, `"ambiente":"staging"`, POST/GET funcionando, 404 validado e **SMOKE TEST APROVADO**.
+![Staging](docs/prints/04-deploy-staging.png)
+
+### Aprovação manual de produção
+![Aprovação](docs/prints/05-aprovacao-producao.png)
+
+### Deploy em produção + smoke test
+`"ambiente":"production"`, health sem detalhes (configuração de produção) e **SMOKE TEST APROVADO**.
+![Produção](docs/prints/06-deploy-producao.png)
 
 ---
 
@@ -233,7 +247,7 @@ ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
 ```
 cidades-esg-inteligentes/
 ├── .github/workflows/ci-cd.yml      # pipeline CI/CD
-├── docs/                            # documentação PDF + prints
+├── docs/                            # Documentacao_Tecnica_Cidades_ESG.pdf + prints/
 ├── k8s/                             # alternativa Kubernetes
 ├── scripts/                         # deploy, smoke test, destroy
 ├── src/                             # código-fonte e testes
@@ -250,10 +264,10 @@ cidades-esg-inteligentes/
 
 | Item | OK |
 |------|----|
-| Projeto compactado em .ZIP com estrutura organizada | ☐ |
-| Dockerfile funcional | ☐ |
-| docker-compose.yml ou arquivos Kubernetes | ☐ |
-| Pipeline com etapas de build, teste e deploy | ☐ |
-| README.md com instruções e prints | ☐ |
-| Documentação técnica com evidências (PDF ou PPT) | ☐ |
-| Deploy realizado nos ambientes staging e produção | ☐ |
+| Projeto compactado em .ZIP com estrutura organizada | ✅ |
+| Dockerfile funcional | ✅ |
+| docker-compose.yml ou arquivos Kubernetes | ✅ |
+| Pipeline com etapas de build, teste e deploy | ✅ |
+| README.md com instruções e prints | ✅ |
+| Documentação técnica com evidências (PDF ou PPT) | ✅ |
+| Deploy realizado nos ambientes staging e produção | ✅ |
