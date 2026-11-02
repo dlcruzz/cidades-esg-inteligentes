@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Cidade",
+  "description": "Contrato de uma cidade devolvida por POST, PUT e GET por id em /api/cidades",
+  "type": "object",
+  "required": [
+    "id", "nome", "uf", "populacao",
+    "indicadorAmbiental", "indicadorSocial", "indicadorGovernanca",
+    "atualizadoEm", "scoreEsg"
+  ],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "nome": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "uf": { "type": "string", "minLength": 2, "maxLength": 2 },
+    "populacao": { "type": "integer", "minimum": 1 },
+    "indicadorAmbiental": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "indicadorSocial": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "indicadorGovernanca": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "atualizadoEm": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}" },
+    "scoreEsg": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+  },
+  "additionalProperties": false
+}

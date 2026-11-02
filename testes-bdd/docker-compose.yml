@@ -1,0 +1,53 @@
+# ==========================================================
+# docker-compose.yml - API + banco + testes BDD
+#
+# Sobe a API Cidades ESG Inteligentes (com PostgreSQL), espera
+# ela ficar saudável e roda a suíte de testes contra ela.
+#
+#   docker compose up --build --abort-on-container-exit --exit-code-from testes
+#
+# A API é construída direto do repositório no GitHub. Para usar
+# uma cópia local, defina API_CONTEXT, por exemplo:
+#   API_CONTEXT=../cidades-esg-inteligentes docker compose up ...
+# ==========================================================
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cidades_esg
+      POSTGRES_USER: esg_user
+      POSTGRES_PASSWORD: esg_pass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U esg_user -d cidades_esg"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ${API_CONTEXT:-https://github.com/dlcruzz/cidades-esg-inteligentes.git#main}
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cidades_esg
+      DB_USER: esg_user
+      DB_PASSWORD: esg_pass
+    depends_on:
+      db:
+        condition: service_healthy
+    # O healthcheck usado aqui é o HEALTHCHECK do Dockerfile da própria API (/actuator/health)
+
+  testes:
+    build:
+      context: .
+    environment:
+      API_URL: http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      # Os relatórios (HTML, JSON, XML e Surefire) aparecem na pasta ./target do seu computador
+      - ./target:/testes/target

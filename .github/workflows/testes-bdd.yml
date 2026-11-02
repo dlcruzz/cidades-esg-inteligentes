@@ -1,0 +1,60 @@
+name: Testes BDD e de contrato da API
+
+# Gatilhos:
+# - push na main e na branch testes-bdd
+# - pull_request para a main
+# - execução manual pela aba Actions (workflow_dispatch)
+on:
+  push:
+    branches: [ "main", "testes-bdd" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  testes-bdd:
+    name: Cucumber + REST Assured + JSON Schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: testes-bdd
+    env:
+      # A API é construída a partir deste mesmo repositório (raiz)
+      API_CONTEXT: ..
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Subir API + banco e executar os testes
+        run: |
+          mkdir -p target
+          docker compose up --build --abort-on-container-exit --exit-code-from testes
+
+      - name: Resumo dos cenários na página da execução
+        if: always()
+        run: |
+          {
+            echo "## Resultado dos testes BDD"
+            if ls target/surefire-reports/*.txt >/dev/null 2>&1; then
+              echo '```'
+              cat target/surefire-reports/*.txt
+              echo '```'
+            else
+              echo "Relatório do Surefire não encontrado."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar relatórios como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-testes-bdd
+          path: |
+            testes-bdd/target/relatorios/
+            testes-bdd/target/surefire-reports/
+          retention-days: 14
+
+      - name: Derrubar o ambiente
+        if: always()
+        run: docker compose down -v

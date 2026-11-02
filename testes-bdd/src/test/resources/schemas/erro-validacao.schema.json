@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Erro 400 - falha de validação",
+  "description": "Contrato do erro devolvido quando o corpo enviado não passa na validação",
+  "type": "object",
+  "required": ["timestamp", "status", "erro", "campos"],
+  "properties": {
+    "timestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}" },
+    "status": { "type": "integer", "enum": [400] },
+    "erro": { "type": "string", "enum": ["Erro de validação"] },
+    "campos": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Status da aplicação",
+  "description": "Contrato da resposta de GET /",
+  "type": "object",
+  "required": ["aplicacao", "versao", "ambiente", "status", "endpoints"],
+  "properties": {
+    "aplicacao": { "type": "string", "minLength": 1 },
+    "versao": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+" },
+    "ambiente": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["UP"] },
+    "endpoints": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

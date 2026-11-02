@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Health check do Actuator",
+  "description": "Contrato da resposta de GET /actuator/health (em produção os detalhes ficam ocultos, por isso components é opcional)",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": { "type": "string", "enum": ["UP"] },
+    "components": { "type": "object" }
+  }
+}

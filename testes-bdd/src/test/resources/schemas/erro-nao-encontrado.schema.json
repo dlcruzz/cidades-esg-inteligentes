@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Erro 404 - recurso não encontrado",
+  "description": "Contrato do erro devolvido pelo GlobalExceptionHandler quando a cidade não existe",
+  "type": "object",
+  "required": ["timestamp", "status", "erro", "mensagem"],
+  "properties": {
+    "timestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}" },
+    "status": { "type": "integer", "enum": [404] },
+    "erro": { "type": "string", "enum": ["Recurso não encontrado"] },
+    "mensagem": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}
